@@ -3,11 +3,8 @@ Storage
 
 Implementations of storage engines for prospective search
 """
-import gdbm, cPickle, sys
-import numpy as np
+import gdbm, cPickle, sys, marshal
 
-# numeric python datatype for stored data
-_plist_dtype = [('qid', np.int32), ('mask', np.int32)]
 
 class MemoryStore(object):
     """Memory storage
@@ -63,15 +60,17 @@ class TCHStore(object):
 
     def write_posts(self, prefix, term, values):
         termstr = "%s%s" % (prefix, term)
-        posting = np.fromiter(values, _plist_dtype).tostring()
+        data = [(int(a), int(b)) for a, b in values]
+        posting = marshal.dumps(data, 2)
         self.db.putasync(termstr, posting)
     
     def read_posts(self, prefix, term):
         try:
             data = self.db["%s%s" % (prefix, term)]
-            return np.fromstring(data, _plist_dtype)
         except KeyError:
             return ()
+        else:
+            return marshal.loads(data)
     
     def close(self):
         self.db.close()
@@ -104,15 +103,17 @@ class GDBMStore(object):
     
     def write_posts(self, prefix, term, values):
         termstr = "%s%s" % (prefix, term)
-        posting = np.fromiter(values, _plist_dtype).tostring()
+        data = [(int(a), int(b)) for a, b in values]
+        posting = marshal.dumps(data, 2)
         self.idxdb[termstr] = posting
     
     def read_posts(self, prefix, term):
         try:
             data = self.idxdb["%s%s" % (prefix, term)]
-            return np.fromstring(data, _plist_dtype)
         except KeyError:
             return ()
+        else:
+            return marshal.loads(data)
 
     def close(self):
         self.idxdb.close()
